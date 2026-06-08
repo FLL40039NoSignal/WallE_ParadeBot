@@ -1,12 +1,13 @@
 #include <Bluepad32.h>
 
-ControllerPtr myControllers[BP32_MAX_GAMEPADS];
+#define WALLE_MAX_GAMEPADS 1
+ControllerPtr myControllers[WALLE_MAX_GAMEPADS];
 
 // This callback gets called any time a new gamepad is connected.
 // Up to 4 gamepads can be connected at the same time.
 void onConnectedController(ControllerPtr ctl) {
   bool foundEmptySlot = false;
-  for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
+  for (int i = 0; i < WALLE_MAX_GAMEPADS; i++) {
     if (myControllers[i] == nullptr) {
       Serial.printf("CALLBACK: Controller is connected, index=%d\n", i);
       // Additionally, you can get certain gamepad properties like:
@@ -27,7 +28,7 @@ void onConnectedController(ControllerPtr ctl) {
 void onDisconnectedController(ControllerPtr ctl) {
   bool foundController = false;
 
-  for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
+  for (int i = 0; i < WALLE_MAX_GAMEPADS; i++) {
     if (myControllers[i] == ctl) {
       Serial.printf("CALLBACK: Controller disconnected from index=%d\n", i);
       myControllers[i] = nullptr;
@@ -43,9 +44,10 @@ void onDisconnectedController(ControllerPtr ctl) {
 
 void dumpGamepad(ControllerPtr ctl) {
   Serial.printf(
-    "idx=%d, dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, %4d, brake: %4d, throttle: %4d, "
+    "idx=%d, battery: %f% dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, %4d, brake: %4d, throttle: %4d, "
     "misc: 0x%02x, gyro x:%6d y:%6d z:%6d, accel x:%6d y:%6d z:%6d\n",
     ctl->index(),        // Controller Index
+    ctl->battery() * 100 / 255.0,
     ctl->dpad(),         // D-pad
     ctl->buttons(),      // bitmask of pressed buttons
     ctl->axisX(),        // (-511 - 512) left X Axis
@@ -61,67 +63,6 @@ void dumpGamepad(ControllerPtr ctl) {
     ctl->accelX(),       // Accelerometer X
     ctl->accelY(),       // Accelerometer Y
     ctl->accelZ()        // Accelerometer Z
-  );
-}
-
-void dumpMouse(ControllerPtr ctl) {
-  Serial.printf("idx=%d, buttons: 0x%04x, scrollWheel=0x%04x, delta X: %4d, delta Y: %4d\n",
-                ctl->index(),        // Controller Index
-                ctl->buttons(),      // bitmask of pressed buttons
-                ctl->scrollWheel(),  // Scroll Wheel
-                ctl->deltaX(),       // (-511 - 512) left X Axis
-                ctl->deltaY()        // (-511 - 512) left Y axis
-  );
-}
-
-void dumpKeyboard(ControllerPtr ctl) {
-  static const char* key_names[] = {
-    // clang-format off
-        // To avoid having too much noise in this file, only a few keys are mapped to strings.
-        // Starts with "A", which is offset 4.
-        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
-        "W", "X", "Y", "Z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
-        // Special keys
-        "Enter", "Escape", "Backspace", "Tab", "Spacebar", "Underscore", "Equal", "OpenBracket", "CloseBracket",
-        "Backslash", "Tilde", "SemiColon", "Quote", "GraveAccent", "Comma", "Dot", "Slash", "CapsLock",
-        // Function keys
-        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
-        // Cursors and others
-        "PrintScreen", "ScrollLock", "Pause", "Insert", "Home", "PageUp", "Delete", "End", "PageDown",
-        "RightArrow", "LeftArrow", "DownArrow", "UpArrow",
-    // clang-format on
-  };
-  static const char* modifier_names[] = {
-    // clang-format off
-        // From 0xe0 to 0xe7
-        "Left Control", "Left Shift", "Left Alt", "Left Meta",
-        "Right Control", "Right Shift", "Right Alt", "Right Meta",
-    // clang-format on
-  };
-  Serial.printf("idx=%d, Pressed keys: ", ctl->index());
-  for (int key = Keyboard_A; key <= Keyboard_UpArrow; key++) {
-    if (ctl->isKeyPressed(static_cast<KeyboardKey>(key))) {
-      const char* keyName = key_names[key - 4];
-      Serial.printf("%s,", keyName);
-    }
-  }
-  for (int key = Keyboard_LeftControl; key <= Keyboard_RightMeta; key++) {
-    if (ctl->isKeyPressed(static_cast<KeyboardKey>(key))) {
-      const char* keyName = modifier_names[key - 0xe0];
-      Serial.printf("%s,", keyName);
-    }
-  }
-  Console.printf("\n");
-}
-
-void dumpBalanceBoard(ControllerPtr ctl) {
-  Serial.printf("idx=%d,  TL=%u, TR=%u, BL=%u, BR=%u, temperature=%d\n",
-                ctl->index(),        // Controller Index
-                ctl->topLeft(),      // top-left scale
-                ctl->topRight(),     // top-right scale
-                ctl->bottomLeft(),   // bottom-left scale
-                ctl->bottomRight(),  // bottom-right scale
-                ctl->temperature()   // temperature: used to adjust the scale value's precision
   );
 }
 
@@ -161,7 +102,7 @@ void processGamepad(ControllerPtr ctl) {
     ctl->setPlayerLEDs(led & 0x0f);
   }
 
-  if (ctl->x()) {
+  if (ctl->buttons() & 1) {
     // Some gamepads like DS3, DS4, DualSense, Switch, Xbox One S, Stadia support rumble.
     // It is possible to set it by calling:
     // Some controllers have two motors: "strong motor", "weak motor".
@@ -173,69 +114,46 @@ void processGamepad(ControllerPtr ctl) {
   // Another way to query controller data is by getting the buttons() function.
   // See how the different "dump*" functions dump the Controller info.
   dumpGamepad(ctl);
+
+  static const double FR_SLOPE     =  1.0;
+  static const double FR_INTERCEPT =  0;
+  static const double SPIN_SLOPE     =  1.0;
+  static const double SPIN_INTERCEPT =  0;
+
+  double FrCmd   = FR_SLOPE   * ctl->axisY() + FR_INTERCEPT;
+  double SpinCmd = SPIN_SLOPE * ctl->axisX() + SPIN_INTERCEPT;
+  Serial.printf("Fr Cmd: %f, Spin Cmd: %f\n", FrCmd, SpinCmd);
+
+  double moveLeft  = FrCmd + SpinCmd;
+  double moveRight = FrCmd - SpinCmd;
+  Serial.printf("move Left: %f, move Right: %f\n", moveLeft, moveRight);
+
+  // TODO: handle move* >1 or <-1
+
+  static const double dirLeft  =  1;
+  static const double dirRight = -1;
+  static const double PWM_SLOPE     =  127;
+  static const double PWM_INTERCEPT =  128;
+
+  double pwmLeft  = PWM_SLOPE * dirLeft  * moveLeft  + PWM_INTERCEPT;
+  double pwmRight = PWM_SLOPE * dirRight * moveRight + PWM_INTERCEPT;
+  Serial.printf("PWM Left: %f, PWM Right: %f\n", pwmLeft, pwmRight);
+
+  // Why break into steps? The two lines below are probably close.
+  // If they don't produce the behavior you want how do you find the problem?
+  // By having steps you can see the actual problem, rather than having to do everything at once...
+  // double pwmLeft  = 128 + 0.25 * ctl->axisX() + 0.25 * axisY();
+  // double pwmRight = 128 - 0.25 * ctl->axisX() + 0.25 * axisY();
+
+  // TODO write pwmLeft and pwmRight to output pins...
 }
 
-void processMouse(ControllerPtr ctl) {
-  // This is just an example.
-  if (ctl->scrollWheel() > 0) {
-    // Do Something
-  } else if (ctl->scrollWheel() < 0) {
-    // Do something else
-  }
-
-  // See "dumpMouse" for possible things to query.
-  dumpMouse(ctl);
-}
-
-void processKeyboard(ControllerPtr ctl) {
-  if (!ctl->isAnyKeyPressed())
-    return;
-
-  // This is just an example.
-  if (ctl->isKeyPressed(Keyboard_A)) {
-    // Do Something
-    Serial.println("Key 'A' pressed");
-  }
-
-  // Don't do "else" here.
-  // Multiple keys can be pressed at the same time.
-  if (ctl->isKeyPressed(Keyboard_LeftShift)) {
-    // Do something else
-    Serial.println("Key 'LEFT SHIFT' pressed");
-  }
-
-  // Don't do "else" here.
-  // Multiple keys can be pressed at the same time.
-  if (ctl->isKeyPressed(Keyboard_LeftArrow)) {
-    // Do something else
-    Serial.println("Key 'Left Arrow' pressed");
-  }
-
-  // See "dumpKeyboard" for possible things to query.
-  dumpKeyboard(ctl);
-}
-
-void processBalanceBoard(ControllerPtr ctl) {
-  // This is just an example.
-  if (ctl->topLeft() > 10000) {
-    // Do Something
-  }
-
-  // See "dumpBalanceBoard" for possible things to query.
-  dumpBalanceBoard(ctl);
-}
 
 void processControllers() {
   for (auto myController : myControllers) {
     if (myController && myController->isConnected() && myController->hasData()) {
       if (myController->isGamepad()) {
         processGamepad(myController);
-      } else if (myController->isMouse()) {
-        processMouse(myController);
-      } else if (myController->isKeyboard()) {
-        processKeyboard(myController);
-      } else if (myController->isBalanceBoard()) {
-        processBalanceBoard(myController);
       } else {
         Serial.println("Unsupported controller");
       }
@@ -283,5 +201,5 @@ void loop() {
   // https://stackoverflow.com/questions/66278271/task-watchdog-got-triggered-the-tasks-did-not-reset-the-watchdog-in-time
 
   //     vTaskDelay(1);
-  delay(150);
+  delay(100);
 }
