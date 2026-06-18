@@ -1,7 +1,15 @@
 #include <Bluepad32.h>
+#include <ESP32Servo.h>
 
 #define WALLE_MAX_GAMEPADS 1
 ControllerPtr myControllers[WALLE_MAX_GAMEPADS];
+
+static const int MIN_uS = 1000;
+static const int MAX_uS = 2000;
+static const int LEFT_MOTOR_PIN = 15;
+static const int RIGHT_MOTOR_PIN = 13;
+Servo leftMotor;
+Servo rightMotor;
 
 // This callback gets called any time a new gamepad is connected.
 // Up to 4 gamepads can be connected at the same time.
@@ -155,8 +163,8 @@ void processGamepad(ControllerPtr ctl) {
 
   static const double dirLeft  =  1;
   static const double dirRight = -1;
-  static const double PWM_SLOPE     =  127;
-  static const double PWM_INTERCEPT =  128;
+  static const double PWM_SLOPE     =  90;
+  static const double PWM_INTERCEPT =  90;
 
   double pwmLeft  = PWM_SLOPE * dirLeft  * moveLeft  + PWM_INTERCEPT;
   double pwmRight = PWM_SLOPE * dirRight * moveRight + PWM_INTERCEPT;
@@ -169,6 +177,8 @@ void processGamepad(ControllerPtr ctl) {
   // double pwmRight = 128 - 0.25 * ctl->axisX() + 0.25 * axisY();
 
   // TODO write pwmLeft and pwmRight to output pins...
+  leftMotor.write(pwmLeft);
+  rightMotor.write(pwmRight);
 }
 
 
@@ -207,6 +217,15 @@ void setup() {
   // - Second one, which is a "virtual device", is a mouse.
   // By default, it is disabled.
   BP32.enableVirtualDevice(false);
+
+  ESP32PWM::allocateTimer(0);
+	ESP32PWM::allocateTimer(1);
+  
+  leftMotor.setPeriodHertz(50);   
+	rightMotor.setPeriodHertz(50);
+	leftMotor.attach(LEFT_MOTOR_PIN, MIN_uS, MAX_uS);
+	rightMotor.attach(RIGHT_MOTOR_PIN, MIN_uS, MAX_uS);
+
 }
 
 // Arduino loop function. Runs in CPU 1.
@@ -222,30 +241,7 @@ void loop() {
   // If your main loop doesn't have one, just add a simple `vTaskDelay(1)`.
   // Detailed info here:
   // https://stackoverflow.com/questions/66278271/task-watchdog-got-triggered-the-tasks-did-not-reset-the-watchdog-in-time
-
   //     vTaskDelay(1);
 
-  //#include <ESP32Servo.h>
-  //Servo leftmtr;
-  //Servo rightmtr;
-  //int minUs = 1000;
-  //int maxUs = 2000;
-  //int leftmtrPin = 15;
-  //int rightmtrPin = 32;
-  //int pos = 0;      // position in degrees
-  //ESP32PWM pwm;
-
-  //void setup() {
-	//ESP32PWM::allocateTimer(0);
-	//ESP32PWM::allocateTimer(1);
-  //Serial.begin(115200);
-  //leftmtr.setPeriodHertz(50);   
-	//rightmtr.setPeriodHertz(50);
-  //}
-  //void loop() {
-	//servo1.attach(leftmtrPin, minUs, maxUs);
-	//servo2.attach(leftmtrPin, minUs, maxUs);
-  //
-
-delay(100);
+  delay(100);
 }
