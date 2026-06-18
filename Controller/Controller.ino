@@ -115,9 +115,9 @@ void processGamepad(ControllerPtr ctl) {
   // See how the different "dump*" functions dump the Controller info.
   dumpGamepad(ctl);
 
-  static const double FR_SLOPE     =  -1.0 / 512;
+  static const double FR_SLOPE     =  -1.0 / 512.0;
   static const double FR_INTERCEPT =  0;
-  static const double SPIN_SLOPE     =  1.0 / 512;
+  static const double SPIN_SLOPE     =  1.0 / 512.0;
   static const double SPIN_INTERCEPT =  0;
 
   // FR_Slope et all need to be determined.
@@ -130,7 +130,7 @@ void processGamepad(ControllerPtr ctl) {
   double moveRight = FrCmd - SpinCmd;
 
   //move left stuff
-  if (moveLeft >=1.001) {
+  if (moveLeft >=1) {
     moveLeft = 1;
   }
    
@@ -139,7 +139,7 @@ void processGamepad(ControllerPtr ctl) {
   }
 
 // move right stuff
-  if (moveRight >=1.001) {
+  if (moveRight >=1) {
     moveRight = 1;
   }
    
@@ -154,12 +154,12 @@ void processGamepad(ControllerPtr ctl) {
   // TODO: handle move* >1 or <-1
 
   static const double dirLeft  =  1;
-  static const double dirRight = 1;
+  static const double dirRight = -1;
   static const double PWM_SLOPE     =  127;
   static const double PWM_INTERCEPT =  128;
 
-  double pwmLeft  = dirLeft * (PWM_SLOPE  * moveLeft  + PWM_INTERCEPT);
-  double pwmRight = dirRight * (PWM_SLOPE * moveRight + PWM_INTERCEPT);
+  double pwmLeft  = PWM_SLOPE * dirLeft  * moveLeft  + PWM_INTERCEPT;
+  double pwmRight = PWM_SLOPE * dirRight * moveRight + PWM_INTERCEPT;
   Serial.printf("PWM Left: %f, PWM Right: %f\n", pwmLeft, pwmRight);
 
   // Why break into steps? The two lines below are probably close.
@@ -224,5 +224,28 @@ void loop() {
   // https://stackoverflow.com/questions/66278271/task-watchdog-got-triggered-the-tasks-did-not-reset-the-watchdog-in-time
 
   //     vTaskDelay(1);
-  delay(100);
+
+  //#include <ESP32Servo.h>
+  //Servo leftmtr;
+  //Servo rightmtr;
+  //int minUs = 1000;
+  //int maxUs = 2000;
+  //int leftmtrPin = 15;
+  //int rightmtrPin = 32;
+  //int pos = 0;      // position in degrees
+  //ESP32PWM pwm;
+
+  //void setup() {
+	//ESP32PWM::allocateTimer(0);
+	//ESP32PWM::allocateTimer(1);
+  //Serial.begin(115200);
+  //leftmtr.setPeriodHertz(50);   
+	//rightmtr.setPeriodHertz(50);
+  //}
+  //void loop() {
+	//servo1.attach(leftmtrPin, minUs, maxUs);
+	//servo2.attach(leftmtrPin, minUs, maxUs);
+  //
+
+delay(100);
 }
