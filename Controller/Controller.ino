@@ -132,7 +132,7 @@ void processGamepad(ControllerPtr ctl) {
 
   double FrCmd   = FR_SLOPE   * ctl->axisY() + FR_INTERCEPT;
   double SpinCmd = SPIN_SLOPE * ctl->axisX() + SPIN_INTERCEPT;
-  Serial.printf("Fr Cmd: %f, Spin Cmd: %f\n", FrCmd, SpinCmd);
+  //Serial.printf("Fr Cmd: %f, Spin Cmd: %f\n", FrCmd, SpinCmd);
 
   double moveLeft  = FrCmd + SpinCmd;
   double moveRight = FrCmd - SpinCmd;
@@ -157,7 +157,7 @@ void processGamepad(ControllerPtr ctl) {
 
 
 
-  Serial.printf("move Left: %f, move Right: %f\n", moveLeft, moveRight);
+  //Serial.printf("move Left: %f, move Right: %f\n", moveLeft, moveRight);
 
   // TODO: handle move* >1 or <-1
 
@@ -168,7 +168,7 @@ void processGamepad(ControllerPtr ctl) {
 
   double pwmLeft  = PWM_SLOPE * dirLeft  * moveLeft  + PWM_INTERCEPT;
   double pwmRight = PWM_SLOPE * dirRight * moveRight + PWM_INTERCEPT;
-  Serial.printf("PWM Left: %f, PWM Right: %f\n", pwmLeft, pwmRight);
+  //Serial.printf("PWM Left: %f, PWM Right: %f\n", pwmLeft, pwmRight);
 
   // Why break into steps? The two lines below are probably close.
   // If they don't produce the behavior you want how do you find the problem?
@@ -190,6 +190,12 @@ void processControllers() {
       } else {
         Serial.println("Unsupported controller");
       }
+    }
+    else
+    {
+      // Stop
+      leftMotor.write(90);
+      rightMotor.write(90);
     }
   }
 }
@@ -235,6 +241,12 @@ void loop() {
   bool dataUpdated = BP32.update();
   if (dataUpdated)
     processControllers();
+  else
+  {
+   // Stop
+    leftMotor.write(90);
+    rightMotor.write(90);
+  }
 
   // The main loop must have some kind of "yield to lower priority task" event.
   // Otherwise, the watchdog will get triggered.
