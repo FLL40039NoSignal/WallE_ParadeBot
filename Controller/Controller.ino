@@ -11,6 +11,9 @@ static const int RIGHT_MOTOR_PIN = 13;
 Servo leftMotor;
 Servo rightMotor;
 
+bool speedChanged = false;
+bool useFast      = false;
+
 // This callback gets called any time a new gamepad is connected.
 // Up to 4 gamepads can be connected at the same time.
 void onConnectedController(ControllerPtr ctl) {
@@ -21,8 +24,8 @@ void onConnectedController(ControllerPtr ctl) {
       // Additionally, you can get certain gamepad properties like:
       // Model, VID, PID, BTAddr, flags, etc.
       ControllerProperties properties = ctl->getProperties();
-      Serial.printf("Controller model: %s, VID=0x%04x, PID=0x%04x\n", ctl->getModelName().c_str(), properties.vendor_id,
-                    properties.product_id);
+      Serial.printf("Controller model: %s, VID=0x%04X, PID=0x%04X, flags:0x%04X\n", ctl->getModelName().c_str(), properties.vendor_id,
+                    properties.product_id, properties.flags);
       myControllers[i] = ctl;
       foundEmptySlot = true;
       break;
@@ -52,7 +55,7 @@ void onDisconnectedController(ControllerPtr ctl) {
 
 void dumpGamepad(ControllerPtr ctl) {
   Serial.printf(
-    "idx=%d, battery: %f% dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, %4d, brake: %4d, throttle: %4d, "
+    "idx=%d, battery: %f dpad: 0x%02x, buttons: 0x%04x, axis L: %4d, %4d, axis R: %4d, %4d, brake: %4d, throttle: %4d, "
     "misc: 0x%02x, gyro x:%6d y:%6d z:%6d, accel x:%6d y:%6d z:%6d\n",
     ctl->index(),        // Controller Index
     ctl->battery() * 100 / 255.0,
@@ -108,6 +111,16 @@ void processGamepad(ControllerPtr ctl) {
     // the "gamepad seat".
     // It is possible to change them by calling:
     ctl->setPlayerLEDs(led & 0x0f);
+
+    if (!speedChanged)
+    {
+      useFast = !useFast;
+      speedChanged = true;
+    }
+  }
+  else
+  {
+    speedChanged = false;
   }
 
   if (ctl->buttons() & 1) {
@@ -121,41 +134,42 @@ void processGamepad(ControllerPtr ctl) {
 
   // Another way to query controller data is by getting the buttons() function.
   // See how the different "dump*" functions dump the Controller info.
-  dumpGamepad(ctl);
+  //dumpGamepad(ctl);
 
   static const double FR_SLOPE     =  -1.0 / 512.0;
   static const double FR_INTERCEPT =  0;
   static const double SPIN_SLOPE     =  1.0 / 512.0;
   static const double SPIN_INTERCEPT =  0;
 
-  // FR_Slope et all need to be determined.
-
   double FrCmd   = FR_SLOPE   * ctl->axisY() + FR_INTERCEPT;
   double SpinCmd = SPIN_SLOPE * ctl->axisX() + SPIN_INTERCEPT;
   //Serial.printf("Fr Cmd: %f, Spin Cmd: %f\n", FrCmd, SpinCmd);
+
+  //Serial.printf("Is Fast: %s, Speed Change Armed: %s\n", (useFast) ? "YES" : "no ", (speedChanged) ? "YES" : "no ");
+  if (!useFast)
+  {
+    FrCmd *= 0.5; // demo speed Fwd speed slower
+    // turning slow to begin with
+  }
 
   double moveLeft  = FrCmd + SpinCmd;
   double moveRight = FrCmd - SpinCmd;
 
   //move left stuff
-  if (moveLeft >=1) {
+  if (moveLeft > 1) {
     moveLeft = 1;
   }
-   
-  if (moveLeft <=-1) {
+  else if (moveLeft <-1) {
     moveLeft = -1;
   }
 
-// move right stuff
-  if (moveRight >=1) {
+  // move right stuff
+  if (moveRight >1) {
     moveRight = 1;
   }
-   
-  if (moveRight <=-1) {
+  else if (moveRight <=-1) {
     moveRight = -1;
   }
-
-
 
   //Serial.printf("move Left: %f, move Right: %f\n", moveLeft, moveRight);
 
